@@ -41,6 +41,7 @@ sketch_terminator/
 ├── package.xml                        # ROS 2 package manifest & dependencies
 ├── setup.py                           # ROS 2 setuptools build configuration
 ├── setup.cfg                          # Build target paths configuration
+├── requirements.txt                   # Python package dependencies
 ├── .gitignore                         # Git exclusion rules
 └── README.md                          # Package documentation
 ```
@@ -49,13 +50,25 @@ sketch_terminator/
 
 ## 🔧 Quick Start
 
-### 1. Configure the OpenAI API Key
+### 1. Set Up a Python Virtual Environment (Recommended)
+On modern Ubuntu systems (like Ubuntu 24.04), using a virtual environment (`.venv`) is strongly recommended to prevent system package manager conflicts (`externally-managed-environment`).
+
+Since this is a ROS 2 package, we must use the `--system-site-packages` flag so the virtual environment inherits system-installed ROS 2 Python libraries (like `rclpy` and `cv_bridge`):
+```bash
+cd /home/wsl/ros2_ws/src/sketch_terminator
+python3 -m venv .venv --system-site-packages
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. Configure the OpenAI API Key
 Open `config/.env` in the package config folder and insert your credentials:
 ```env
 OPENAI_API_KEY=sk-proj-...
 ```
 
-### 2. Build the Package
+### 3. Build the Package
+Remember to build the package from the workspace root (ensure your virtual environment is active or sourced):
 ```bash
 cd /home/wsl/ros2_ws
 colcon build --symlink-install --packages-select sketch_terminator

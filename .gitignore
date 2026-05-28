@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+.venv/
 
 # ROS 2 build & local artifacts
 build/

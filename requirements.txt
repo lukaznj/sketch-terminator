@@ -1,0 +1,8 @@
+streamlit
+python-dotenv
+langchain-openai
+rosa
+rich
+numpy
+scipy
+pyyaml
