@@ -1,0 +1,22 @@
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# ROS 2 build & local artifacts
+build/
+install/
+log/
+.eggs/
+*.egg-info/
+
+# Credentials & Local Environment parameters (NEVER commit these!)
+.env
+config/.env
+
+# IDE / local settings
+.vscode/
+.idea/
+.settings/
+.DS_Store

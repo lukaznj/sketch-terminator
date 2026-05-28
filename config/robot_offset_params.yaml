@@ -1,0 +1,11 @@
+robot_offset:
+  # Rotation alignment flips
+  flip_y: true
+  flip_z: true
+
+  # Position offset of robot base {R} in checkerboard coordinates (in meters)
+  # x_offset = (14.5 + 2.8) cm = 17.3 cm = 0.173 m
+  offset_x: 0.173
+  # y_offset = 10.5 cm = 0.105 m
+  offset_y: 0.105
+  offset_z: 0.0
