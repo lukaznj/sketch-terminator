@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from ament_index_python.packages import get_package_share_directory
 from rosa import ROSA, RobotSystemPrompts
-from prarob_interact.ros2_introspection import scan_ros2_environment, format_state_for_prompt
+from .ros2_introspection import scan_ros2_environment, format_state_for_prompt
 from .tools import TOOLS
 
 def get_llm():

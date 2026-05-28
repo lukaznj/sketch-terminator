@@ -31,6 +31,7 @@ setup(
         'console_scripts': [
             'integration_node = sketch_terminator.integration_node:main',
             'agent_node = sketch_terminator.agent_node:main',
+            'path_planner_node = sketch_terminator.path_planner_node:main',
         ],
     },
 )
