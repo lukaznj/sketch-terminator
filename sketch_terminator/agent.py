@@ -69,11 +69,8 @@ def get_llm():
         api_key = os.getenv("OPENAI_API_KEY")
 
     if not api_key:
-        checked_str = "\n".join(sorted(list(set([f"  - {os.path.abspath(p)} (Exists: {os.path.isfile(p)})" for p in candidates]))))
         raise ValueError(
-            f"OPENAI_API_KEY not found. Checked the following .env locations:\n{checked_str}\n"
-            "Please ensure it is defined in one of these files or export it directly in your terminal:\n"
-            "  export OPENAI_API_KEY='your-key-here'"
+            "OPENAI_API_KEY not found. Please ensure it is defined in the package config/.env or your environment variables."
         )
 
     model = os.getenv("LLM_MODEL", "gpt-4o-mini")
