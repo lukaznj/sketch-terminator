@@ -42,7 +42,7 @@ def generate_launch_description():
     package_share = get_package_share_directory('sketch_terminator')
     gui_script = os.path.join(package_share, 'gui', 'dashboard.py')
     streamlit_gui = ExecuteProcess(
-        cmd=['streamlit', 'run', gui_script],
+        cmd=['streamlit', 'run', gui_script, '--server.headless', 'true'],
         output='screen'
     )
 
