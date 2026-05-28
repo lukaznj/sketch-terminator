@@ -50,10 +50,19 @@ sketch_terminator/
 
 ## 🔧 Quick Start
 
-### 1. Set Up a Python Virtual Environment (Recommended)
-On modern Ubuntu systems (like Ubuntu 24.04), using a virtual environment (`.venv`) is strongly recommended to prevent system package manager conflicts (`externally-managed-environment`).
+### 1. Install Python Dependencies
 
-Since this is a ROS 2 package, we must use the `--system-site-packages` flag so the virtual environment inherits system-installed ROS 2 Python libraries (like `rclpy` and `cv_bridge`):
+You can choose between a **Global Installation** (highly recommended for seamless ROS 2 integration without path resolution issues) or a **Virtual Environment**.
+
+#### Option A: Global Installation (Recommended for ROS 2)
+On modern Ubuntu systems (like Ubuntu 24.04), `pip` restricts global installations to prevent package conflicts. You can safely bypass this for your workspace development using the `--break-system-packages` flag:
+```bash
+cd /home/wsl/ros2_ws/src/sketch_terminator
+pip3 install --break-system-packages -r requirements.txt
+```
+
+#### Option B: Virtual Environment Isolation
+If you prefer virtual environment isolation, you **must** use the `--system-site-packages` flag so that the virtual environment can inherit the system-installed ROS 2 Python libraries (like `rclpy` and `cv_bridge`):
 ```bash
 cd /home/wsl/ros2_ws/src/sketch_terminator
 python3 -m venv .venv --system-site-packages

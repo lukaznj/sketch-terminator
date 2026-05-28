@@ -10,18 +10,64 @@ from .tools import TOOLS
 
 def get_llm():
     """Create and return the ChatOpenAI model using credentials from package config/.env or environment."""
+    # 1. If key is already in the environment, use it!
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        return ChatOpenAI(
+            model_name=os.getenv("LLM_MODEL", "gpt-4o-mini"),
+            temperature=float(os.getenv("LLM_TEMPERATURE", "0.0")),
+            openai_api_key=api_key
+        )
+
+    # 2. Compile a list of candidate .env paths
+    candidates = []
+
+    # A. Check package share directory
     try:
         package_share = get_package_share_directory('sketch_terminator')
-        env_path = os.path.join(package_share, 'config', '.env')
+        candidates.append(os.path.join(package_share, 'config', '.env'))
     except Exception:
-        env_path = ""
+        pass
 
-    if env_path and os.path.exists(env_path):
-        load_dotenv(env_path)
-    else:
+    # B. Walk up from current working directory
+    cwd = os.getcwd()
+    for _ in range(5):
+        candidates.append(os.path.join(cwd, '.env'))
+        candidates.append(os.path.join(cwd, 'config', '.env'))
+        candidates.append(os.path.join(cwd, 'src', 'sketch_terminator', 'config', '.env'))
+        parent = os.path.dirname(cwd)
+        if parent == cwd:
+            break
+        cwd = parent
+
+    # C. Walk up from the location of this python file (__file__)
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(8):
+        candidates.append(os.path.join(this_dir, '.env'))
+        candidates.append(os.path.join(this_dir, 'config', '.env'))
+        candidates.append(os.path.join(this_dir, '..', 'config', '.env'))
+        candidates.append(os.path.join(this_dir, 'src', 'sketch_terminator', 'config', '.env'))
+        parent = os.path.dirname(this_dir)
+        if parent == this_dir:
+            break
+        this_dir = parent
+
+    # 3. Load the first candidate path that exists
+    loaded = False
+    for path in candidates:
+        abs_path = os.path.abspath(path)
+        if os.path.isfile(abs_path):
+            load_dotenv(abs_path)
+            api_key = os.getenv("OPENAI_API_KEY")
+            if api_key:
+                loaded = True
+                break
+
+    # 4. Fallback to standard load_dotenv() if nothing was loaded yet
+    if not loaded:
         load_dotenv()
+        api_key = os.getenv("OPENAI_API_KEY")
 
-    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError(
             "OPENAI_API_KEY not found. Please ensure it is defined in the package config/.env or your environment variables."

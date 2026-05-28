@@ -1,7 +1,7 @@
 streamlit
 python-dotenv
 langchain-openai
-rosa
+jpl-rosa
 rich
 numpy
 scipy
