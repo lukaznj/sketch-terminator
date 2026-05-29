@@ -140,17 +140,9 @@ if 'ros_node' not in st.session_state:
     st.session_state.response_sub = node.create_subscription(
         String,
         '/agent/response',
-        lambda msg: st.session_state.response_queue.put(msg.data),
+        (lambda msg: st.session_state.response_queue.put(msg.data)),
         10
-    # Sidebar layout
-st.sidebar.markdown("<h1 style='text-align: center; font-size: 20px; color: #00f2fe; text-shadow: 0 0 10px rgba(0, 242, 254, 0.4);'>SKETCH TERMINATOR</h1>", unsafe_allow_html=True)
-st.sidebar.markdown("---")
-
-# Joint monitoring in Sidebar to keep it useful
-st.sidebar.markdown("### 🦾 System Status")
-st.sidebar.markdown(f"- **J1 (Base):** `{st.session_state.j1_val:.3f} rad`")
-st.sidebar.markdown(f"- **J2 (Shoulder):** `{st.session_state.j2_val:.3f} rad`")
-st.sidebar.markdown(f"- **J3 (Elbow):** `{st.session_state.j3_val:.3f} rad`")
+    )
 
 # Helper function to sync GUI session state values back to widget keys
 def sync_widget_states():
@@ -189,6 +181,16 @@ if 'j1_val' not in st.session_state:
     st.session_state.ik_z_val = float(z)
     
     sync_widget_states()
+
+# Sidebar layout - Rendered safely after initialization
+st.sidebar.markdown("<h1 style='text-align: center; font-size: 20px; color: #00f2fe; text-shadow: 0 0 10px rgba(0, 242, 254, 0.4);'>SKETCH TERMINATOR</h1>", unsafe_allow_html=True)
+st.sidebar.markdown("---")
+
+# Joint monitoring in Sidebar to keep it useful
+st.sidebar.markdown("### 🦾 System Status")
+st.sidebar.markdown(f"- **J1 (Base):** `{st.session_state.j1_val:.3f} rad`")
+st.sidebar.markdown(f"- **J2 (Shoulder):** `{st.session_state.j2_val:.3f} rad`")
+st.sidebar.markdown(f"- **J3 (Elbow):** `{st.session_state.j3_val:.3f} rad`")
 
 # Real-time Trajectory Publisher
 def publish_joints(j1, j2, j3):
