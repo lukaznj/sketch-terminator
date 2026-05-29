@@ -1,12 +1,16 @@
 import os
 import asyncio
+import time
+import queue
+import json
 import streamlit as st
 import rclpy
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+from sensor_msgs.msg import JointState
+from std_msgs.msg import String
 from builtin_interfaces.msg import Duration
 
 from sketch_terminator.kinematics import Kinematics
-from sketch_terminator.agent import create_agent
 
 # Set page config
 st.set_page_config(
@@ -31,23 +35,23 @@ st.markdown("""
         background: radial-gradient(circle at 50% 50%, #151a30 0%, #080a12 100%);
     }
 
-    h1, h2, h3 {
+    h1, h2, h3, h4 {
         font-family: 'Orbitron', sans-serif !important;
         letter-spacing: 2px;
         color: #00f2fe;
         text-shadow: 0 0 10px rgba(0, 242, 254, 0.4);
     }
     
-    /* Premium Glassmorphic Cards */
-    .glass-card {
-        background: rgba(21, 26, 48, 0.45);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 16px;
-        padding: 24px;
-        margin-bottom: 24px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    /* Premium Glassmorphic Cards applied to Streamlit's container borders */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: rgba(21, 26, 48, 0.45) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 16px !important;
+        padding: 24px !important;
+        margin-bottom: 24px !important;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
     }
     
     /* Interactive Cyber Button */
@@ -77,6 +81,33 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Function to fetch current joints from ROS 2 on startup
+def get_current_joints(node):
+    class JointStatesSubscriber:
+        def __init__(self):
+            self.received = False
+            self.positions = [0.0, 0.0, 0.0]
+        def callback(self, msg):
+            name_map = {n: i for i, n in enumerate(msg.name)}
+            if 'joint1' in name_map and 'joint2' in name_map and 'joint3' in name_map:
+                self.positions = [
+                    msg.position[name_map['joint1']],
+                    msg.position[name_map['joint2']],
+                    msg.position[name_map['joint3']]
+                ]
+                self.received = True
+
+    sub_obj = JointStatesSubscriber()
+    sub = node.create_subscription(JointState, '/joint_states', sub_obj.callback, 10)
+    
+    # Spin up to 1 second
+    start_time = time.time()
+    while not sub_obj.received and (time.time() - start_time) < 1.0:
+        rclpy.spin_once(node, timeout_sec=0.05)
+        
+    node.destroy_subscription(sub)
+    return sub_obj.positions if sub_obj.received else [0.0, 0.0, 0.0]
+
 # Initialize ROS 2 Node in session state
 if 'ros_node' not in st.session_state:
     if not rclpy.ok():
@@ -90,14 +121,28 @@ if 'ros_node' not in st.session_state:
     )
     st.session_state.kinematics = Kinematics()
 
-# Initialize ROSA Agent in session state
-if 'agent' not in st.session_state:
-    try:
-        st.session_state.agent = create_agent(streaming=True, verbose=False)
-        st.session_state.agent_ready = True
-    except Exception as e:
-        st.session_state.agent_ready = False
-        st.session_state.agent_error = str(e)
+    # ROS 2 Native Decoupled AI Agent topics setup
+    st.session_state.command_pub = node.create_publisher(
+        String,
+        '/agent/command',
+        10
+    )
+    st.session_state.token_queue = queue.Queue()
+    st.session_state.response_queue = queue.Queue()
+
+    # Subscriptions
+    st.session_state.token_sub = node.create_subscription(
+        String,
+        '/agent/tokens',
+        lambda msg: st.session_state.token_queue.put(msg.data),
+        10
+    )
+    st.session_state.response_sub = node.create_subscription(
+        String,
+        '/agent/response',
+        lambda msg: st.session_state.response_queue.put(msg.data),
+        10
+    )
 
 # Sidebar layout
 st.sidebar.markdown("<h1 style='text-align: center; font-size: 20px;'>SKETCH TERMINATOR</h1>", unsafe_allow_html=True)
@@ -109,6 +154,163 @@ mode = st.sidebar.radio(
     ["Manual Kinematics Mode", "Autonomous ROSA Mode"]
 )
 
+# Helper function to sync GUI session state values back to widget keys
+def sync_widget_states():
+    st.session_state.j1_slider = float(st.session_state.j1_val)
+    st.session_state.j1_text = f"{st.session_state.j1_val:.3f}"
+    st.session_state.j2_slider = float(st.session_state.j2_val)
+    st.session_state.j2_text = f"{st.session_state.j2_val:.3f}"
+    st.session_state.j3_slider = float(st.session_state.j3_val)
+    st.session_state.j3_text = f"{st.session_state.j3_val:.3f}"
+    
+    st.session_state.ik_x_slider = float(st.session_state.ik_x_val)
+    st.session_state.ik_x_text = f"{st.session_state.ik_x_val:.3f}"
+    st.session_state.ik_y_slider = float(st.session_state.ik_y_val)
+    st.session_state.ik_y_text = f"{st.session_state.ik_y_val:.3f}"
+    st.session_state.ik_z_slider = float(st.session_state.ik_z_val)
+    st.session_state.ik_z_text = f"{st.session_state.ik_z_val:.3f}"
+
+# Initialize session state variables on startup
+if 'j1_val' not in st.session_state:
+    # 1. Fetch current joint states from hardware
+    init_joints = [0.0, 0.0, 0.0]
+    try:
+        init_joints = get_current_joints(st.session_state.ros_node)
+    except Exception:
+        pass
+    
+    # Order: [joint1 (beta), joint2 (gama), joint3 (alpha)]
+    st.session_state.j1_val = float(init_joints[2]) # alpha
+    st.session_state.j2_val = float(init_joints[0]) # beta
+    st.session_state.j3_val = float(init_joints[1]) # gama
+
+    # Calculate default Cartesian position
+    x, y, z = st.session_state.kinematics.get_dk(st.session_state.j2_val, st.session_state.j3_val, st.session_state.j1_val)
+    st.session_state.ik_x_val = float(x)
+    st.session_state.ik_y_val = float(y)
+    st.session_state.ik_z_val = float(z)
+    
+    sync_widget_states()
+
+# Real-time Trajectory Publisher
+def publish_joints(j1, j2, j3):
+    try:
+        msg = JointTrajectory()
+        msg.joint_names = ['joint1', 'joint2', 'joint3']
+        point = JointTrajectoryPoint()
+        point.positions = [float(j2), float(j3), float(j1)]
+        point.time_from_start = Duration(sec=0, nanosec=150000000) # 150ms for smooth tracking
+        msg.points.append(point)
+        st.session_state.joint_pub.publish(msg)
+    except Exception:
+        pass
+
+def on_joint_change():
+    # Sync IK values
+    x, y, z = st.session_state.kinematics.get_dk(st.session_state.j2_val, st.session_state.j3_val, st.session_state.j1_val)
+    st.session_state.ik_x_val = float(x)
+    st.session_state.ik_y_val = float(y)
+    st.session_state.ik_z_val = float(z)
+    # Publish to robot
+    publish_joints(st.session_state.j1_val, st.session_state.j2_val, st.session_state.j3_val)
+
+def on_ik_change():
+    # Solve IK
+    try:
+        b_val, g_val, a_val = st.session_state.kinematics.get_ik(st.session_state.ik_x_val, st.session_state.ik_y_val, st.session_state.ik_z_val)
+        st.session_state.j1_val = float(a_val)
+        st.session_state.j2_val = float(b_val)
+        st.session_state.j3_val = float(g_val)
+        # Publish to robot
+        publish_joints(a_val, b_val, g_val)
+    except Exception:
+        pass
+
+# Bidirectional sync callbacks
+def update_j1_slider():
+    st.session_state.j1_val = st.session_state.j1_slider
+    on_joint_change()
+    sync_widget_states()
+
+def update_j1_text():
+    try:
+        val = float(st.session_state.j1_text)
+        st.session_state.j1_val = max(-3.14, min(3.14, val))
+    except ValueError:
+        pass
+    on_joint_change()
+    sync_widget_states()
+
+def update_j2_slider():
+    st.session_state.j2_val = st.session_state.j2_slider
+    on_joint_change()
+    sync_widget_states()
+
+def update_j2_text():
+    try:
+        val = float(st.session_state.j2_text)
+        st.session_state.j2_val = max(-3.14, min(3.14, val))
+    except ValueError:
+        pass
+    on_joint_change()
+    sync_widget_states()
+
+def update_j3_slider():
+    st.session_state.j3_val = st.session_state.j3_slider
+    on_joint_change()
+    sync_widget_states()
+
+def update_j3_text():
+    try:
+        val = float(st.session_state.j3_text)
+        st.session_state.j3_val = max(-3.14, min(3.14, val))
+    except ValueError:
+        pass
+    on_joint_change()
+    sync_widget_states()
+
+def update_ik_x_slider():
+    st.session_state.ik_x_val = st.session_state.ik_x_slider
+    on_ik_change()
+    sync_widget_states()
+
+def update_ik_x_text():
+    try:
+        val = float(st.session_state.ik_x_text)
+        st.session_state.ik_x_val = max(-0.45, min(0.45, val))
+    except ValueError:
+        pass
+    on_ik_change()
+    sync_widget_states()
+
+def update_ik_y_slider():
+    st.session_state.ik_y_val = st.session_state.ik_y_slider
+    on_ik_change()
+    sync_widget_states()
+
+def update_ik_y_text():
+    try:
+        val = float(st.session_state.ik_y_text)
+        st.session_state.ik_y_val = max(-0.45, min(0.45, val))
+    except ValueError:
+        pass
+    on_ik_change()
+    sync_widget_states()
+
+def update_ik_z_slider():
+    st.session_state.ik_z_val = st.session_state.ik_z_slider
+    on_ik_change()
+    sync_widget_states()
+
+def update_ik_z_text():
+    try:
+        val = float(st.session_state.ik_z_text)
+        st.session_state.ik_z_val = max(-0.05, min(0.09, val))
+    except ValueError:
+        pass
+    on_ik_change()
+    sync_widget_states()
+
 # Header Section
 st.markdown("<h1 style='text-align: center; margin-bottom: 30px;'>🤖 ROBOTIC CONTROL DASHBOARD</h1>", unsafe_allow_html=True)
 
@@ -116,94 +318,79 @@ if mode == "Manual Kinematics Mode":
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-        st.markdown("<h2>⚡ Direct Kinematics</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='color:#a0aec0;'>Enter joint angles to compute Cartesian pose.</p>", unsafe_allow_html=True)
-
-        dk_input_type = st.radio("DK Control Type:", ["Sliders", "Text Inputs"], key="dk_type")
-        
-        if dk_input_type == "Sliders":
-            j1 = st.slider("Joint 1 (Base Rotation) [rad]:", -3.14, 3.14, 0.0, step=0.01)
-            j2 = st.slider("Joint 2 (Shoulder) [rad]:", -3.14, 3.14, 0.0, step=0.01)
-            j3 = st.slider("Joint 3 (Elbow) [rad]:", -3.14, 3.14, 0.0, step=0.01)
-        else:
-            j1 = float(st.text_input("Joint 1 (Base Rotation) [rad]:", "0.0", key="dk_j1"))
-            j2 = float(st.text_input("Joint 2 (Shoulder) [rad]:", "0.0", key="dk_j2"))
-            j3 = float(st.text_input("Joint 3 (Elbow) [rad]:", "0.0", key="dk_j3"))
-
-        # Calculate pose
-        x, y, z = st.session_state.kinematics.get_dk(j2, j3, j1) # DK maps beta=j2, gama=j3, alpha=j1
-
-        st.markdown("<h3 class='glow-text'>Computed Cartesian Pose:</h3>", unsafe_allow_html=True)
-        st.code(f"X (End Effector) = {x:.4f} m ({x*1000.0:.1f} mm)\nY (End Effector) = {y:.4f} m ({y*1000.0:.1f} mm)\nZ (End Effector) = {z:.4f} m ({z*1000.0:.1f} mm)")
-
-        if st.button("Move to Joint Position"):
-            msg = JointTrajectory()
-            msg.joint_names = ['joint1', 'joint2', 'joint3']
-            point = JointTrajectoryPoint()
-            point.positions = [float(j2), float(j3), float(j1)]  # Joint1=beta, Joint2=gama, Joint3=alpha
-            point.time_from_start = Duration(sec=2, nanosec=0)
-            msg.points.append(point)
+        with st.container(border=True):
+            st.markdown("<h2>⚡ Direct Kinematics</h2>", unsafe_allow_html=True)
+            st.markdown("<p style='color:#a0aec0;'>Drag sliders or enter text to command robot joints in real time.</p>", unsafe_allow_html=True)
             
-            st.session_state.joint_pub.publish(msg)
-            st.success(f"Commanded Joint Angles: {point.positions}")
-        
-        st.markdown("</div>", unsafe_allow_html=True)
+            # Row 1: Joint 1
+            st.markdown("#### Joint 1 (Base Rotation) [rad]")
+            c_sld, c_txt = st.columns([3, 1])
+            c_sld.slider("j1_sld_lbl", -3.14, 3.14, key="j1_slider", on_change=update_j1_slider, label_visibility="collapsed", step=0.01)
+            c_txt.text_input("j1_txt_lbl", key="j1_text", on_change=update_j1_text, label_visibility="collapsed")
+
+            # Row 2: Joint 2
+            st.markdown("#### Joint 2 (Shoulder) [rad]")
+            c_sld, c_txt = st.columns([3, 1])
+            c_sld.slider("j2_sld_lbl", -3.14, 3.14, key="j2_slider", on_change=update_j2_slider, label_visibility="collapsed", step=0.01)
+            c_txt.text_input("j2_txt_lbl", key="j2_text", on_change=update_j2_text, label_visibility="collapsed")
+
+            # Row 3: Joint 3
+            st.markdown("#### Joint 3 (Elbow) [rad]")
+            c_sld, c_txt = st.columns([3, 1])
+            c_sld.slider("j3_sld_lbl", -3.14, 3.14, key="j3_slider", on_change=update_j3_slider, label_visibility="collapsed", step=0.01)
+            c_txt.text_input("j3_txt_lbl", key="j3_text", on_change=update_j3_text, label_visibility="collapsed")
+
+            st.markdown("<h3 class='glow-text'>Computed Cartesian Pose:</h3>", unsafe_allow_html=True)
+            # DK calculations
+            x_dk, y_dk, z_dk = st.session_state.kinematics.get_dk(st.session_state.j2_val, st.session_state.j3_val, st.session_state.j1_val)
+            st.code(f"X (End Effector) = {x_dk:.4f} m ({x_dk*1000.0:.1f} mm)\n"
+                    f"Y (End Effector) = {y_dk:.4f} m ({y_dk*1000.0:.1f} mm)\n"
+                    f"Z (End Effector) = {z_dk:.4f} m ({z_dk*1000.0:.1f} mm)")
 
     with col2:
-        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-        st.markdown("<h2>📐 Inverse Kinematics</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='color:#a0aec0;'>Enter Cartesian coordinates to compute joint angles.</p>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("<h2>📐 Inverse Kinematics</h2>", unsafe_allow_html=True)
+            st.markdown("<p style='color:#a0aec0;'>Drag sliders or enter text to command Cartesian target in real time.</p>", unsafe_allow_html=True)
 
-        ik_input_type = st.radio("IK Control Type:", ["Sliders", "Text Inputs"], key="ik_type")
+            # Row 1: X Position
+            st.markdown("#### X Position [m]")
+            c_sld, c_txt = st.columns([3, 1])
+            c_sld.slider("ik_x_sld_lbl", -0.45, 0.45, key="ik_x_slider", on_change=update_ik_x_slider, label_visibility="collapsed", step=0.005)
+            c_txt.text_input("ik_x_txt_lbl", key="ik_x_text", on_change=update_ik_x_text, label_visibility="collapsed")
 
-        if ik_input_type == "Sliders":
-            X_val = st.slider("X Position [m]:", -0.45, 0.45, 0.2, step=0.005)
-            Y_val = st.slider("Y Position [m]:", -0.45, 0.45, 0.0, step=0.005)
-            Z_val = st.slider("Z Position [m]:", -0.05, 0.09, 0.0, step=0.005)
-        else:
-            X_val = float(st.text_input("X Position [m]:", "0.2", key="ik_x"))
-            Y_val = float(st.text_input("Y Position [m]:", "0.0", key="ik_y"))
-            Z_val = float(st.text_input("Z Position [m]:", "0.0", key="ik_z"))
+            # Row 2: Y Position
+            st.markdown("#### Y Position [m]")
+            c_sld, c_txt = st.columns([3, 1])
+            c_sld.slider("ik_y_sld_lbl", -0.45, 0.45, key="ik_y_slider", on_change=update_ik_y_slider, label_visibility="collapsed", step=0.005)
+            c_txt.text_input("ik_y_txt_lbl", key="ik_y_text", on_change=update_ik_y_text, label_visibility="collapsed")
 
-        # Calculate IK
-        try:
-            b_val, g_val, a_val = st.session_state.kinematics.get_ik(X_val, Y_val, Z_val)
-            ik_success = True
-        except Exception as e:
-            ik_success = False
-            ik_err = str(e)
+            # Row 3: Z Position
+            st.markdown("#### Z Position [m]")
+            c_sld, c_txt = st.columns([3, 1])
+            c_sld.slider("ik_z_sld_lbl", -0.05, 0.09, key="ik_z_slider", on_change=update_ik_z_slider, label_visibility="collapsed", step=0.005)
+            c_txt.text_input("ik_z_txt_lbl", key="ik_z_text", on_change=update_ik_z_text, label_visibility="collapsed")
 
-        st.markdown("<h3 class='glow-text'>Computed Joint Values:</h3>", unsafe_allow_html=True)
-        if ik_success:
-            st.code(f"Joint 1 (Shoulder - beta) = {b_val:.4f} rad ({b_val * 180.0 / 3.1415:.1f}°)\n"
-                    f"Joint 2 (Elbow - gama)    = {g_val:.4f} rad ({g_val * 180.0 / 3.1415:.1f}°)\n"
-                    f"Joint 3 (Base - alpha)    = {a_val:.4f} rad ({a_val * 180.0 / 3.1415:.1f}°)")
-            
-            if st.button("Move to Cartesian Target"):
-                msg = JointTrajectory()
-                msg.joint_names = ['joint1', 'joint2', 'joint3']
-                point = JointTrajectoryPoint()
-                point.positions = [float(b_val), float(g_val), float(a_val)]
-                point.time_from_start = Duration(sec=2, nanosec=0)
-                msg.points.append(point)
-                
-                st.session_state.joint_pub.publish(msg)
-                st.success(f"Commanded joints for pose [{X_val}, {Y_val}, {Z_val}]: {point.positions}")
-        else:
-            st.error(f"IK Resolution Failed: Target is out of reach.")
-        
-        st.markdown("</div>", unsafe_allow_html=True)
+            # Calculate IK for display status
+            try:
+                b_val, g_val, a_val = st.session_state.kinematics.get_ik(st.session_state.ik_x_val, st.session_state.ik_y_val, st.session_state.ik_z_val)
+                ik_success = True
+            except Exception:
+                ik_success = False
+
+            st.markdown("<h3 class='glow-text'>Computed Joint Values:</h3>", unsafe_allow_html=True)
+            if ik_success:
+                st.code(f"Joint 1 (Shoulder - beta) = {b_val:.4f} rad ({b_val * 180.0 / 3.1415:.1f}°)\n"
+                        f"Joint 2 (Elbow - gama)    = {g_val:.4f} rad ({g_val * 180.0 / 3.1415:.1f}°)\n"
+                        f"Joint 3 (Base - alpha)    = {a_val:.4f} rad ({a_val * 180.0 / 3.1415:.1f}°)")
+            else:
+                st.error("IK Resolution Failed: Target is out of reach.")
 
 else:
-    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-    st.markdown("<h2>⚡ ROSA Autonomous AI Command Center</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='color:#a0aec0;'>Interact with the robotic system using natural language instructions.</p>", unsafe_allow_html=True)
-    st.markdown("---")
+    with st.container(border=True):
+        st.markdown("<h2>⚡ ROSA Autonomous AI Command Center</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='color:#a0aec0;'>Interact with the robotic system using natural language instructions.</p>", unsafe_allow_html=True)
+        st.markdown("---")
 
-    if not st.session_state.get('agent_ready', False):
-        st.error(f"ROSA Agent is unavailable. Please check that docs/.env has a valid OpenAI key. Error: {st.session_state.get('agent_error')}")
-    else:
         # Chat interface
         command = st.text_input("Enter natural language request (e.g. 'Idi od car do traffic light i izbjegni cat'):")
         
@@ -212,8 +399,9 @@ else:
         clear_clicked = col_clear.button("CLEAR CHAT")
 
         if clear_clicked:
-            st.session_state.agent.clear_chat()
-            st.success("Chat history cleared.")
+            st.session_state.token_queue = queue.Queue()
+            st.session_state.response_queue = queue.Queue()
+            st.success("Chat interface cleared.")
 
         if execute_clicked and command:
             st.write("---")
@@ -222,22 +410,65 @@ else:
             # Setup containers
             tool_status = st.empty()
             token_stream = st.empty()
+            
+            # Clear any old items in queues
+            st.session_state.token_queue = queue.Queue()
+            st.session_state.response_queue = queue.Queue()
 
-            async def stream_response(query):
-                full_text = ""
-                async for event in st.session_state.agent.astream(query):
-                    kind = event.get("type", "")
-                    if kind == "token":
-                        full_text += event.get("content", "")
-                        token_stream.markdown(f"<div style='background-color:#111528; padding:15px; border-radius:8px; border:1px solid #2d3748;'>{full_text}</div>", unsafe_allow_html=True)
-                    elif kind == "tool_start":
-                        tool_name = event.get("name", "tool")
-                        tool_status.info(f"🛠️ Executing robotic system tool: `{tool_name}`...")
-                    elif kind == "tool_end":
-                        tool_name = event.get("name", "tool")
-                        tool_status.success(f"✅ Completed executing tool: `{tool_name}` successfully.")
+            # Publish command to ROS 2 topic
+            cmd_msg = String()
+            cmd_msg.data = command
+            st.session_state.command_pub.publish(cmd_msg)
+            
+            # Listen to /agent/tokens and /agent/response in a loop
+            full_text = ""
+            start_time = time.time()
+            timeout_limit = 60.0  # 60s max execution time
+            completed = False
 
-            # Run async stream
-            asyncio.run(stream_response(command))
+            while (time.time() - start_time) < timeout_limit:
+                # Spin once to fetch latest ROS 2 subscription messages
+                rclpy.spin_once(st.session_state.ros_node, timeout_sec=0.02)
+                
+                # Check for completed response
+                if not st.session_state.response_queue.empty():
+                    # Read final response
+                    st.session_state.response_queue.get()
+                    completed = True
+                    break
 
-    st.markdown("</div>", unsafe_allow_html=True)
+                # Process all accumulated streaming tokens/events
+                while not st.session_state.token_queue.empty():
+                    try:
+                        event_data_str = st.session_state.token_queue.get_nowait()
+                        event = json.loads(event_data_str)
+                        kind = event.get("type", "")
+                        
+                        if kind == "token":
+                            full_text += event.get("content", "")
+                            token_stream.markdown(
+                                f"<div style='background-color:#111528; padding:15px; border-radius:8px; border:1px solid #2d3748;'>{full_text}</div>", 
+                                unsafe_allow_html=True
+                            )
+                            start_time = time.time()  # Keep-alive on new token receipt
+                        elif kind == "tool_start":
+                            tool_name = event.get("content", "tool")
+                            tool_status.info(f"🛠️ Executing robotic system tool: `{tool_name}`...")
+                            start_time = time.time()
+                        elif kind == "tool_end":
+                            tool_name = event.get("content", "tool")
+                            tool_status.success(f"✅ Completed executing tool: `{tool_name}` successfully.")
+                            start_time = time.time()
+                        elif kind == "error":
+                            err_msg = event.get("content", "Unknown error")
+                            st.error(f"❌ ROSA Error: {err_msg}")
+                            completed = True
+                            break
+                    except Exception:
+                        pass
+                
+                if completed:
+                    break
+
+            if not completed:
+                st.warning("⚠️ Execution timed out or no agent_node is currently running in the background.")
