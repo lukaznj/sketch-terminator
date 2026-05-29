@@ -142,17 +142,15 @@ if 'ros_node' not in st.session_state:
         '/agent/response',
         lambda msg: st.session_state.response_queue.put(msg.data),
         10
-    )
-
-# Sidebar layout
-st.sidebar.markdown("<h1 style='text-align: center; font-size: 20px;'>SKETCH TERMINATOR</h1>", unsafe_allow_html=True)
-st.sidebar.markdown("<p style='text-align: center; color: #4facfe;'>Premium Manipulator Control</p>", unsafe_allow_html=True)
+    # Sidebar layout
+st.sidebar.markdown("<h1 style='text-align: center; font-size: 20px; color: #00f2fe; text-shadow: 0 0 10px rgba(0, 242, 254, 0.4);'>SKETCH TERMINATOR</h1>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
-mode = st.sidebar.radio(
-    "SELECT SYSTEM MODE:",
-    ["Manual Kinematics Mode", "Autonomous ROSA Mode"]
-)
+# Joint monitoring in Sidebar to keep it useful
+st.sidebar.markdown("### 🦾 System Status")
+st.sidebar.markdown(f"- **J1 (Base):** `{st.session_state.j1_val:.3f} rad`")
+st.sidebar.markdown(f"- **J2 (Shoulder):** `{st.session_state.j2_val:.3f} rad`")
+st.sidebar.markdown(f"- **J3 (Elbow):** `{st.session_state.j3_val:.3f} rad`")
 
 # Helper function to sync GUI session state values back to widget keys
 def sync_widget_states():
@@ -314,12 +312,19 @@ def update_ik_z_text():
 # Header Section
 st.markdown("<h1 style='text-align: center; margin-bottom: 30px;'>🤖 ROBOTIC CONTROL DASHBOARD</h1>", unsafe_allow_html=True)
 
-if mode == "Manual Kinematics Mode":
+# Initialize Chat History
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
+
+# Modern tabs swapper
+tab_manual, tab_rosa = st.tabs(["🎛️ MANUAL CONTROL", "🤖 AUTONOMOUS ROSA"])
+
+with tab_manual:
     col1, col2 = st.columns(2)
 
     with col1:
         with st.container(border=True):
-            st.markdown("<h2>⚡ Direct Kinematics</h2>", unsafe_allow_html=True)
+            st.markdown("<h2>Direct Kinematics</h2>", unsafe_allow_html=True)
             st.markdown("<p style='color:#a0aec0;'>Drag sliders or enter text to command robot joints in real time.</p>", unsafe_allow_html=True)
             
             # Row 1: Joint 1
@@ -343,13 +348,13 @@ if mode == "Manual Kinematics Mode":
             st.markdown("<h3 class='glow-text'>Computed Cartesian Pose:</h3>", unsafe_allow_html=True)
             # DK calculations
             x_dk, y_dk, z_dk = st.session_state.kinematics.get_dk(st.session_state.j2_val, st.session_state.j3_val, st.session_state.j1_val)
-            st.code(f"X (End Effector) = {x_dk:.4f} m ({x_dk*1000.0:.1f} mm)\n"
-                    f"Y (End Effector) = {y_dk:.4f} m ({y_dk*1000.0:.1f} mm)\n"
-                    f"Z (End Effector) = {z_dk:.4f} m ({z_dk*1000.0:.1f} mm)")
+            st.code(f"X: {x_dk*1000.0:.1f} mm\n"
+                    f"Y: {y_dk*1000.0:.1f} mm\n"
+                    f"Z: {z_dk*1000.0:.1f} mm")
 
     with col2:
         with st.container(border=True):
-            st.markdown("<h2>📐 Inverse Kinematics</h2>", unsafe_allow_html=True)
+            st.markdown("<h2>Inverse Kinematics</h2>", unsafe_allow_html=True)
             st.markdown("<p style='color:#a0aec0;'>Drag sliders or enter text to command Cartesian target in real time.</p>", unsafe_allow_html=True)
 
             # Row 1: X Position
@@ -379,96 +384,102 @@ if mode == "Manual Kinematics Mode":
 
             st.markdown("<h3 class='glow-text'>Computed Joint Values:</h3>", unsafe_allow_html=True)
             if ik_success:
-                st.code(f"Joint 1 (Shoulder - beta) = {b_val:.4f} rad ({b_val * 180.0 / 3.1415:.1f}°)\n"
-                        f"Joint 2 (Elbow - gama)    = {g_val:.4f} rad ({g_val * 180.0 / 3.1415:.1f}°)\n"
-                        f"Joint 3 (Base - alpha)    = {a_val:.4f} rad ({a_val * 180.0 / 3.1415:.1f}°)")
+                st.code(f"J1: {b_val:.4f} rad ({b_val * 180.0 / 3.1415:.1f}°)\n"
+                        f"J2: {g_val:.4f} rad ({g_val * 180.0 / 3.1415:.1f}°)\n"
+                        f"J3: {a_val:.4f} rad ({a_val * 180.0 / 3.1415:.1f}°)")
             else:
                 st.error("IK Resolution Failed: Target is out of reach.")
 
-else:
+with tab_rosa:
     with st.container(border=True):
-        st.markdown("<h2>⚡ ROSA Autonomous AI Command Center</h2>", unsafe_allow_html=True)
+        st.markdown("<h2>ROSA Autonomous AI Command Center</h2>", unsafe_allow_html=True)
         st.markdown("<p style='color:#a0aec0;'>Interact with the robotic system using natural language instructions.</p>", unsafe_allow_html=True)
         st.markdown("---")
 
-        # Chat interface
-        command = st.text_input("Enter natural language request (e.g. 'Idi od car do traffic light i izbjegni cat'):")
+        # Render Chat History in premium chat bubbles
+        for msg in st.session_state.chat_history:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+        # Modern chat input box
+        command = st.chat_input("Enter natural language request (e.g. 'Idi od car do traffic light i izbjegni cat')...")
         
-        col_exec, col_clear = st.columns([1, 6])
-        execute_clicked = col_exec.button("EXECUTE")
-        clear_clicked = col_clear.button("CLEAR CHAT")
+        col_clear = st.columns([1, 6])[0]
+        if col_clear.button("CLEAR CHAT"):
+            st.session_state.chat_history = []
+            st.rerun()
 
-        if clear_clicked:
-            st.session_state.token_queue = queue.Queue()
-            st.session_state.response_queue = queue.Queue()
-            st.success("Chat interface cleared.")
+        if command:
+            # Add user prompt to history and render it immediately
+            st.session_state.chat_history.append({"role": "user", "content": command})
+            with st.chat_message("user"):
+                st.markdown(command)
 
-        if execute_clicked and command:
-            st.write("---")
-            st.markdown("<h3 class='glow-text'>Execution Stream:</h3>", unsafe_allow_html=True)
-            
-            # Setup containers
-            tool_status = st.empty()
-            token_stream = st.empty()
-            
-            # Clear any old items in queues
-            st.session_state.token_queue = queue.Queue()
-            st.session_state.response_queue = queue.Queue()
-
-            # Publish command to ROS 2 topic
-            cmd_msg = String()
-            cmd_msg.data = command
-            st.session_state.command_pub.publish(cmd_msg)
-            
-            # Listen to /agent/tokens and /agent/response in a loop
-            full_text = ""
-            start_time = time.time()
-            timeout_limit = 60.0  # 60s max execution time
-            completed = False
-
-            while (time.time() - start_time) < timeout_limit:
-                # Spin once to fetch latest ROS 2 subscription messages
-                rclpy.spin_once(st.session_state.ros_node, timeout_sec=0.02)
+            # Assistant generation block
+            with st.chat_message("assistant"):
+                status_container = st.empty()
+                response_container = st.empty()
                 
-                # Check for completed response
-                if not st.session_state.response_queue.empty():
-                    # Read final response
-                    st.session_state.response_queue.get()
-                    completed = True
-                    break
-
-                # Process all accumulated streaming tokens/events
-                while not st.session_state.token_queue.empty():
-                    try:
-                        event_data_str = st.session_state.token_queue.get_nowait()
-                        event = json.loads(event_data_str)
-                        kind = event.get("type", "")
-                        
-                        if kind == "token":
-                            full_text += event.get("content", "")
-                            token_stream.markdown(
-                                f"<div style='background-color:#111528; padding:15px; border-radius:8px; border:1px solid #2d3748;'>{full_text}</div>", 
-                                unsafe_allow_html=True
-                            )
-                            start_time = time.time()  # Keep-alive on new token receipt
-                        elif kind == "tool_start":
-                            tool_name = event.get("content", "tool")
-                            tool_status.info(f"🛠️ Executing robotic system tool: `{tool_name}`...")
-                            start_time = time.time()
-                        elif kind == "tool_end":
-                            tool_name = event.get("content", "tool")
-                            tool_status.success(f"✅ Completed executing tool: `{tool_name}` successfully.")
-                            start_time = time.time()
-                        elif kind == "error":
-                            err_msg = event.get("content", "Unknown error")
-                            st.error(f"❌ ROSA Error: {err_msg}")
-                            completed = True
-                            break
-                    except Exception:
-                        pass
+                # Publish command to ROS 2 topic
+                cmd_msg = String()
+                cmd_msg.data = command
+                st.session_state.command_pub.publish(cmd_msg)
                 
-                if completed:
-                    break
+                # Clear queues
+                st.session_state.token_queue = queue.Queue()
+                st.session_state.response_queue = queue.Queue()
 
-            if not completed:
-                st.warning("⚠️ Execution timed out or no agent_node is currently running in the background.")
+                full_text = ""
+                completed = False
+                start_time = time.time()
+                timeout_limit = 60.0  # 60s max execution time
+
+                # ChatGPT-like loading/thinking spinner wrapper
+                with st.spinner("Razmišljam... (AI Agent is thinking)"):
+                    status_container.info("🧠 Pokrećem ROSA proces razmišljanja...")
+                    
+                    while (time.time() - start_time) < timeout_limit:
+                         # Spin once to fetch latest ROS 2 subscription messages
+                         rclpy.spin_once(st.session_state.ros_node, timeout_sec=0.02)
+                         
+                         # Check for completed response
+                         if not st.session_state.response_queue.empty():
+                             st.session_state.response_queue.get()
+                             completed = True
+                             break
+
+                         # Process all accumulated streaming tokens/events
+                         while not st.session_state.token_queue.empty():
+                             try:
+                                 event_data_str = st.session_state.token_queue.get_nowait()
+                                 event = json.loads(event_data_str)
+                                 kind = event.get("type", "")
+                                 
+                                 if kind == "token":
+                                     full_text += event.get("content", "")
+                                     response_container.markdown(full_text)
+                                     start_time = time.time()  # Keep-alive on new token receipt
+                                 elif kind == "tool_start":
+                                     tool_name = event.get("content", "tool")
+                                     status_container.info(f"⚙️ Pokrećem robotski alat (tool): `{tool_name}`...")
+                                     start_time = time.time()
+                                 elif kind == "tool_end":
+                                     tool_name = event.get("content", "tool")
+                                     status_container.success(f"✅ Alat `{tool_name}` uspješno izvršen.")
+                                     start_time = time.time()
+                                 elif kind == "error":
+                                     err_msg = event.get("content", "Unknown error")
+                                     st.error(f"❌ ROSA Error: {err_msg}")
+                                     completed = True
+                                     break
+                             except Exception:
+                                 pass
+                         
+                         if completed:
+                             break
+
+                    if completed:
+                        st.session_state.chat_history.append({"role": "assistant", "content": full_text})
+                        status_container.empty() # Clean up status box
+                    else:
+                        st.warning("⚠️ Execution timed out or no agent_node is currently running in the background.")
