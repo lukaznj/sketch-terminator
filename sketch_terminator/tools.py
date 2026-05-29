@@ -40,9 +40,11 @@ def get_detected_objects(timeout_sec: float = 3.0) -> str:
     )
 
     try:
+        executor = rclpy.executors.SingleThreadedExecutor()
+        executor.add_node(node)
         start_time = node.get_clock().now()
         while received_msg is None:
-            rclpy.spin_once(node, timeout_sec=0.1)
+            executor.spin_once(timeout_sec=0.1)
             elapsed = node.get_clock().now() - start_time
             if elapsed.nanoseconds > (timeout_sec * 1e9):
                 return "No objects detected on topic /vision/object_positions. Is the vision system running?"
@@ -133,9 +135,11 @@ def get_joint_states(timeout_sec: float = 2.0) -> str:
     )
 
     try:
+        executor = rclpy.executors.SingleThreadedExecutor()
+        executor.add_node(node)
         start_time = node.get_clock().now()
         while received_msg is None:
-            rclpy.spin_once(node, timeout_sec=0.1)
+            executor.spin_once(timeout_sec=0.1)
             elapsed = node.get_clock().now() - start_time
             if elapsed.nanoseconds > (timeout_sec * 1e9):
                 return "Error: Timeout waiting for joint states. Is the robot simulation or hardware running?"
@@ -176,9 +180,11 @@ def get_end_effector_pose(timeout_sec: float = 2.0) -> str:
     )
 
     try:
+        executor = rclpy.executors.SingleThreadedExecutor()
+        executor.add_node(node)
         start_time = node.get_clock().now()
         while received_msg is None:
-            rclpy.spin_once(node, timeout_sec=0.1)
+            executor.spin_once(timeout_sec=0.1)
             elapsed = node.get_clock().now() - start_time
             if elapsed.nanoseconds > (timeout_sec * 1e9):
                 return "Error: Timeout waiting for joint states."
@@ -247,9 +253,11 @@ def plan_and_move_to_object(start_class: str, goal_class: str, avoid_classes: li
         node.get_logger().info(f"Published plan request: {req_msg.data}")
 
         # Wait for planned path response
+        executor = rclpy.executors.SingleThreadedExecutor()
+        executor.add_node(node)
         start_time = node.get_clock().now()
         while received_path_msg is None:
-            rclpy.spin_once(node, timeout_sec=0.1)
+            executor.spin_once(timeout_sec=0.1)
             elapsed = node.get_clock().now() - start_time
             if elapsed.nanoseconds > (timeout_sec * 1e9):
                 return f"Timeout waiting for path planner response for request: {req_payload}. Is path_planner_node running?"
