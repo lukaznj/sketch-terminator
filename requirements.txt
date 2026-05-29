@@ -3,6 +3,8 @@ python-dotenv
 langchain-openai
 jpl-rosa
 rich
-numpy
+numpy<2
 scipy
 pyyaml
+torch
+ultralytics

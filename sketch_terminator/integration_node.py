@@ -9,8 +9,42 @@ from rclpy.node import Node
 from std_msgs.msg import String
 from sensor_msgs.msg import JointState
 from trajectory_msgs.msg import JointTrajectory
-from yolo_msgs.msg import DetectionArray
 from ament_index_python.packages import get_package_share_directory
+
+# Helper classes to mimic YOLO Detection message structure from JSON string
+class PositionHelper:
+    def __init__(self, data):
+        self.x = float(data.get("x", 0.0))
+        self.y = float(data.get("y", 0.0))
+
+class CenterHelper:
+    def __init__(self, data):
+        self.position = PositionHelper(data.get("position", {}))
+
+class SizeHelper:
+    def __init__(self, data):
+        self.x = float(data.get("x", 0.0))
+        self.y = float(data.get("y", 0.0))
+
+class BBoxHelper:
+    def __init__(self, data):
+        self.center = CenterHelper(data.get("center", {}))
+        self.size = SizeHelper(data.get("size", {}))
+
+class DetectionHelper:
+    def __init__(self, data):
+        self.class_name = data.get("class_name", "")
+        self.score = float(data.get("score", 0.0))
+        self.bbox = BBoxHelper(data.get("bbox", {}))
+
+class DetectionArrayHelper:
+    def __init__(self, json_str):
+        try:
+            data = json.loads(json_str)
+        except Exception:
+            data = {}
+        self.detections = [DetectionHelper(d) for d in data.get("detections", [])]
+
 
 from .kinematics import Kinematics
 from .trajectory_generator import TrajectoryGenerator
@@ -66,7 +100,7 @@ class IntegrationNode(Node):
 
         # Subscriptions
         self.yolo_sub = self.create_subscription(
-            DetectionArray,
+            String,
             detections_topic,
             self.yolo_callback,
             10
@@ -203,8 +237,9 @@ class IntegrationNode(Node):
         Callback for YOLO detections. Coordinates mapping 2D pixel bounding boxes to
         3D world space (in mm) and publishes in standard format on /vision/object_positions.
         """
+        parsed_msg = DetectionArrayHelper(msg.data)
         objects = []
-        for det in msg.detections:
+        for det in parsed_msg.detections:
             center_x = det.bbox.center.position.x
             center_y = det.bbox.center.position.y
             size_x = det.bbox.size.x

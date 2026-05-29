@@ -12,7 +12,6 @@
   <depend>trajectory_msgs</depend>
   <depend>control_msgs</depend>
   <depend>sensor_msgs</depend>
-  <depend>yolo_msgs</depend>
   <depend>xacro</depend>
   <depend>controller_manager</depend>
   <depend>robot_state_publisher</depend>
