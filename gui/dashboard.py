@@ -10,7 +10,7 @@ from sketch_terminator.agent import create_agent
 
 # Set page config
 st.set_page_config(
-    page_title="Antigravity ROS 2 Control Panel",
+    page_title="Sketch Terminator ROS 2 Control Panel",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -100,7 +100,7 @@ if 'agent' not in st.session_state:
         st.session_state.agent_error = str(e)
 
 # Sidebar layout
-st.sidebar.markdown("<h1 style='text-align: center;'>ANTIGRAVITY</h1>", unsafe_allow_html=True)
+st.sidebar.markdown("<h1 style='text-align: center; font-size: 20px;'>SKETCH TERMINATOR</h1>", unsafe_allow_html=True)
 st.sidebar.markdown("<p style='text-align: center; color: #4facfe;'>Premium Manipulator Control</p>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 

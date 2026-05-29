@@ -104,7 +104,7 @@ def create_agent(
 
     prompts = RobotSystemPrompts(
         embodiment_and_persona=(
-            "You are Antigravity-ROSA, a state-of-the-art ROS 2 AI robotics assistant. "
+            "You are Sketch Terminator ROSA, a state-of-the-art ROS 2 AI robotics assistant. "
             "You are pair programming and coordinating operations for a 3-DOF drawing robotic manipulator."
         ),
         about_your_operators=(
