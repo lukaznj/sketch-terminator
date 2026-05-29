@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<robot name="prarob_manipulator" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:include filename="$(find sketch_terminator)/urdf/prarob_manipulator.xacro" />
+  <xacro:include filename="$(find sketch_terminator)/urdf/prarob_manipulator.ros2_control.xacro" />
+
+  <link name="world"/>
+
+  <xacro:prarob_manipulator parent="world">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </xacro:prarob_manipulator>
+
+  <xacro:prarob_manipulator_ros2_control name="prarob_manipulator_ros2_control" />
+</robot>

@@ -1,0 +1,134 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+<xacro:macro name="prarob_manipulator" params="parent *origin">
+  <joint name="origin_to_link1" type="fixed">
+    <xacro:insert_block name="origin" />
+    <parent link="${parent}" />
+    <child link="link1" />
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    <axis xyz="0 0 1" />
+  </joint>
+
+  <!-- Link 1 - primitives-->
+  <!--link name="link1">
+    <visual>
+      <origin xyz="0 0 0.5" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.05 1.0"/>
+      </geometry>
+      <color rgba="0 0 0.8 1"/>
+    </visual>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.05 1.0"/>
+      </geometry>
+    </collision>
+  </link-->
+
+<!-- Link 1 - stl -->
+  <link name="link1">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/postolje_seminar_v1.stl" scale="0.01 0.01 0.01"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.054901960784313725 0.054901960784313725 0.06274509803921569 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/postolje_seminar_v1.stl" scale="0.01 0.01 0.01"/>
+      </geometry>
+    </collision>
+
+  </link>
+
+  <!-- Joint 1 -->
+  <joint name="joint1" type="revolute">
+    <parent link="link1"/>
+    <child link="link2"/>
+    <origin xyz="0.0 0.0 1.0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit velocity="10.0" effort="1" lower="-2.82743338823" upper="2.82743338823" />
+  </joint>
+
+  <!-- Link 2 -->
+  <link name="link2">
+    <visual>
+      <origin xyz="0 0 0.3" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.05 0.6"/>
+      </geometry>
+      <color rgba="0 0.8 0.0 1"/>
+    </visual>
+
+    <collision>
+      <origin xyz="0 0 0.3" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.05 0.6"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Joint 2 -->
+  <joint name="joint2" type="revolute">
+    <parent link="link2"/>
+    <child link="link3"/>
+    <origin xyz="0.0 0.0 0.60" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit velocity="10.0" effort="1" lower="-2.82743338823" upper="2.82743338823" />
+  </joint>
+
+  <!-- Link 3 -->
+  <link name="link3">
+    <visual>
+      <origin xyz="0.15 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.3 0.05 0.05"/>
+      </geometry>
+      <color rgba="0 0 0.8 1"/>
+    </visual>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.3 0.05 0.05"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Joint 2 -->
+  <joint name="joint3" type="revolute">
+    <parent link="link3"/>
+    <child link="link_tool"/>
+    <origin xyz="0.3 0.0 0.0" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit velocity="10.0" effort="1" lower="-2.82743338823" upper="2.82743338823" />
+  </joint>
+
+  <!-- link_tool -->
+  <link name="link_tool">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.08 0.08 0.08"/>
+      </geometry>
+      <color rgba="0 0 0.8 1"/>
+    </visual>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.08 0.08 0.08"/>
+      </geometry>
+    </collision>
+  </link>
+
+
+</xacro:macro>
+</robot>
