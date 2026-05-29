@@ -7,8 +7,10 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-from sensor_msgs.msg import JointState
+from sensor_msgs.msg import JointState, Image
 from trajectory_msgs.msg import JointTrajectory
+from cv_bridge import CvBridge
+import cv2
 from ament_index_python.packages import get_package_share_directory
 
 # Helper classes to mimic YOLO Detection message structure from JSON string
@@ -95,8 +97,10 @@ class IntegrationNode(Node):
         ])
         self.load_extrinsic_matrix()
 
-        # Storage for current joint states
+        # Storage for current joint states and planned path for image overlay
         self.current_joints = None
+        self.planned_path = None
+        self.bridge = CvBridge()
 
         # Subscriptions
         self.yolo_sub = self.create_subscription(
@@ -117,6 +121,12 @@ class IntegrationNode(Node):
             self.path_callback,
             10
         )
+        self.image_sub = self.create_subscription(
+            Image,
+            '/image_raw',
+            self.image_callback,
+            10
+        )
 
         # Publishers
         self.vision_pub = self.create_publisher(
@@ -127,6 +137,11 @@ class IntegrationNode(Node):
         self.trajectory_pub = self.create_publisher(
             JointTrajectory,
             joint_trajectory_topic,
+            10
+        )
+        self.path_image_pub = self.create_publisher(
+            Image,
+            '/planning/path_image',
             10
         )
 
@@ -323,6 +338,7 @@ class IntegrationNode(Node):
         try:
             path_data = json.loads(msg.data)
             path_pts = path_data.get("path", [])
+            self.planned_path = path_pts  # Cache active path for overlay
         except Exception as e:
             self.get_logger().error(f"Failed to parse path JSON: {e}")
             return
@@ -352,6 +368,89 @@ class IntegrationNode(Node):
             self.trajectory_pub.publish(trajectory)
         else:
             self.get_logger().error("Failed to generate timed trajectory.")
+
+    def world2image(self, world_point):
+        """
+        Projects a 3D point in the robot base frame (in mm) back to 2D image pixel coordinates (u, v).
+        """
+        # Convert world_point from mm to meters
+        X_R = world_point[0] / 1000.0
+        Y_R = world_point[1] / 1000.0
+        Z_R = world_point[2] / 1000.0
+        
+        # Reverse base offset translation and flips to go back to the checkerboard coordinate system
+        xc = X_R - self.offset_x
+        yc = - (Y_R - self.offset_y) if self.flip_y else (Y_R - self.offset_y)
+        zc = - (Z_R - self.offset_z) if self.flip_z else (Z_R - self.offset_z)
+        
+        P_world = np.array([xc, yc, zc]).reshape((3, 1))
+        
+        R = self.T_cam_world[0:3, 0:3]
+        t = self.T_cam_world[0:3, 3].reshape((3, 1))
+        
+        R_inv = np.linalg.inv(R)
+        P_cam = R_inv.dot(P_world - t)
+        
+        X_c = P_cam[0, 0]
+        Y_c = P_cam[1, 0]
+        Z_c = P_cam[2, 0]
+        
+        if abs(Z_c) < 1e-5:
+            return None
+            
+        # Project using K_matrix: u = fx * Xc / Zc + cx, v = fy * Yc / Zc + cy
+        u = (self.K_matrix[0, 0] * X_c) / Z_c + self.K_matrix[0, 2]
+        v = (self.K_matrix[1, 1] * Y_c) / Z_c + self.K_matrix[1, 2]
+        
+        return int(round(u)), int(round(v))
+
+    def image_callback(self, msg):
+        """
+        Receives camera image, projects the active planned path onto it,
+        and publishes the annotated image on /planning/path_image.
+        """
+        if not hasattr(self, 'planned_path') or not self.planned_path:
+            # If no path planned, publish the raw image directly to keep topic alive
+            self.path_image_pub.publish(msg)
+            return
+
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+        except Exception as e:
+            self.get_logger().error(f"Failed to convert Image message: {e}")
+            return
+
+        # Project and draw path waypoints
+        pts_2d = []
+        for pt in self.planned_path:
+            x_mm = pt.get("x", 0.0)
+            y_mm = pt.get("y", 0.0)
+            pixel = self.world2image([x_mm, y_mm, 0.0])
+            if pixel is not None:
+                pts_2d.append(pixel)
+
+        # Draw glowing cyan lines connecting waypoints
+        if len(pts_2d) > 1:
+            for i in range(len(pts_2d) - 1):
+                cv2.line(cv_image, pts_2d[i], pts_2d[i+1], (255, 255, 0), 3, cv2.LINE_AA)
+            
+            # Draw distinct start (green) and goal (red) markers
+            cv2.circle(cv_image, pts_2d[0], 6, (0, 255, 0), -1)
+            cv2.circle(cv_image, pts_2d[-1], 6, (0, 0, 255), -1)
+            
+            # Label start/goal
+            cv2.putText(cv_image, "START", (pts_2d[0][0] + 8, pts_2d[0][1] + 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1, cv2.LINE_AA)
+            cv2.putText(cv_image, "GOAL", (pts_2d[-1][0] + 8, pts_2d[-1][1] + 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1, cv2.LINE_AA)
+
+        # Publish annotated image
+        try:
+            annotated_msg = self.bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
+            annotated_msg.header = msg.header
+            self.path_image_pub.publish(annotated_msg)
+        except Exception as e:
+            self.get_logger().error(f"Failed to publish annotated path image: {e}")
 
 def main(args=None):
     rclpy.init(args=args)
