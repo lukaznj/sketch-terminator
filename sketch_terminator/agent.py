@@ -123,7 +123,7 @@ def create_agent(
             "3. 'move_robot_joints': Move the joints [joint1, joint2, joint3] directly to specified angles (in radians).\n"
             "4. 'get_joint_states': Get the current raw positions of all joints.\n"
             "5. 'get_end_effector_pose': Use direct kinematics to get the current Cartesian [X, Y, Z] position of the marker.\n\n"
-            "When the user asks to plan a path or move between objects (e.g. 'Idi od car do traffic light i izbjegni cat'), "
+            "When the user asks to plan a path or move between objects (e.g. 'go from car to traffic light avoiding cat'), "
             "use the 'plan_and_move_to_object' tool directly. Do not call intermediate tools unless asked."
         )
     )

@@ -192,6 +192,15 @@ st.sidebar.markdown(f"- **J1 (Base):** `{st.session_state.j1_val:.3f} rad`")
 st.sidebar.markdown(f"- **J2 (Shoulder):** `{st.session_state.j2_val:.3f} rad`")
 st.sidebar.markdown(f"- **J3 (Elbow):** `{st.session_state.j3_val:.3f} rad`")
 
+# Hidden settings in Sidebar
+with st.sidebar.expander("Diagnostics & Advanced Config"):
+    enable_danger_zone = st.checkbox("Show Danger Zone Options", value=False)
+    if enable_danger_zone:
+        st.warning("⚠️ Danger Zone")
+        if st.button("Purge Chat Logs", use_container_width=True):
+            st.session_state.chat_history = []
+            st.rerun()
+
 # Real-time Trajectory Publisher
 def publish_joints(j1, j2, j3):
     try:
@@ -311,9 +320,6 @@ def update_ik_z_text():
     on_ik_change()
     sync_widget_states()
 
-# Header Section
-st.markdown("<h1 style='text-align: center; margin-bottom: 30px;'>🤖 ROBOTIC CONTROL DASHBOARD</h1>", unsafe_allow_html=True)
-
 # Initialize Chat History
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
@@ -404,12 +410,7 @@ with tab_rosa:
                 st.markdown(msg["content"])
 
         # Modern chat input box
-        command = st.chat_input("Enter natural language request (e.g. 'Idi od car do traffic light i izbjegni cat')...")
-        
-        col_clear = st.columns([1, 6])[0]
-        if col_clear.button("CLEAR CHAT"):
-            st.session_state.chat_history = []
-            st.rerun()
+        command = st.chat_input("Enter natural language request (e.g., 'go from car to traffic light avoiding cat')...")
 
         if command:
             # Add user prompt to history and render it immediately
@@ -435,10 +436,10 @@ with tab_rosa:
                 completed = False
                 start_time = time.time()
                 timeout_limit = 60.0  # 60s max execution time
-
+                
                 # ChatGPT-like loading/thinking spinner wrapper
-                with st.spinner("Razmišljam... (AI Agent is thinking)"):
-                    status_container.info("🧠 Pokrećem ROSA proces razmišljanja...")
+                with st.spinner("Agent is thinking..."):
+                    status_container.info("🧠 Initializing ROSA reasoning process...")
                     
                     while (time.time() - start_time) < timeout_limit:
                          # Spin once to fetch latest ROS 2 subscription messages
@@ -463,11 +464,11 @@ with tab_rosa:
                                      start_time = time.time()  # Keep-alive on new token receipt
                                  elif kind == "tool_start":
                                      tool_name = event.get("content", "tool")
-                                     status_container.info(f"⚙️ Pokrećem robotski alat (tool): `{tool_name}`...")
+                                     status_container.info(f"⚙️ Executing robotic tool: `{tool_name}`...")
                                      start_time = time.time()
                                  elif kind == "tool_end":
                                      tool_name = event.get("content", "tool")
-                                     status_container.success(f"✅ Alat `{tool_name}` uspješno izvršen.")
+                                     status_container.success(f"✅ Tool `{tool_name}` completed successfully.")
                                      start_time = time.time()
                                  elif kind == "error":
                                      err_msg = event.get("content", "Unknown error")
