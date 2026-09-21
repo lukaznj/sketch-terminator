@@ -1,0 +1,41 @@
+# ros2_control configuration.
+#
+# joint_trajectory_controller is the one that actually draws: move_robot.py
+# streams it a new single-point trajectory every 40 ms.
+# velocity_controller is spawned but unused -- kept for manual jogging during
+# bring-up.
+
+controller_manager:
+  ros__parameters:
+    update_rate: 50  # Hz; twice the 25 Hz point stream, so no command is missed
+
+    velocity_controller:
+      type: velocity_controllers/JointGroupVelocityController
+
+    joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+velocity_controller:
+  ros__parameters:
+    joints:
+      - joint1
+      - joint2
+      - joint3
+
+joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - joint1   # shoulder
+      - joint2   # elbow
+      - joint3   # base rotation
+
+    command_interfaces:
+      - position
+
+    state_interfaces:
+      - position
+
+    action_monitor_rate: 50.0

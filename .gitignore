@@ -1,0 +1,20 @@
+# ROS 2 build output
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments and IDE settings
+.venv/
+.vscode/
+.idea/
+.DS_Store
+
+# Secrets
+config/.env
+
+# YOLO weights: downloaded on first run, too large to track
+*.pt

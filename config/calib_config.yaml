@@ -1,0 +1,17 @@
+# Checkerboard geometry for the camera-to-robot calibration.
+# Measure these on your own printed board -- getting square_size wrong scales
+# every position the vision pipeline reports.
+
+cam2world:
+  ros__parameters:
+    # Inner corners, not squares.
+    checkerboard_width: 9
+    checkerboard_height: 7
+    # Side of one square, in metres.
+    square_size: 0.0175
+    # Offset from the robot base to the board's far corner, in metres.
+    x_offset: 0.0423
+    y_offset: 0.1016
+    # The board is axis-aligned with the robot but mirrored, so its rotation is
+    # just three signs on the diagonal.
+    rotation_diagonal: [-1.0, 1.0, -1.0]

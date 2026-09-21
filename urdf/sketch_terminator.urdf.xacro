@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<robot name="sketch_terminator" xmlns:xacro="http://ros.org/wiki/xacro">
+  <!-- Main robot description (now contains all links and joints directly, without macros) -->
+  <xacro:include filename="$(find sketch_terminator)/urdf/sketch_terminator.xacro" />
+  
+  <!-- Loading the hardware interface for Dynamixel motors -->
+  <xacro:include filename="$(find sketch_terminator)/urdf/sketch_terminator.ros2_control.xacro" />
+
+  <!-- Starting the ROS2 Control macro -->
+  <xacro:sketch_terminator_ros2_control name="sketch_terminator_ros2_control" />
+</robot>

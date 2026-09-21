@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<!-- Shared colours for the RViz visual meshes. -->
+<robot name="sketch_terminator_materials" xmlns:xacro="http://www.ros.org/wiki/xacro" >
+
+<material name="silver">
+  <color rgba="0.700 0.700 0.700 1.000"/>
+</material>
+
+<material name="blue">
+  <color rgba="0.100 0.300 0.800 1.000"/>
+</material>
+
+</robot>

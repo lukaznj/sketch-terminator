@@ -1,0 +1,348 @@
+<?xml version="1.0" ?>
+<!--
+  Links and joints of the Sketch Terminator arm.
+
+  Three driven joints, base to tip:
+    joint3 (alpha) - base yaw, rotates the whole arm
+    joint1 (beta)  - shoulder
+    joint2 (gama)  - elbow, carries the pen holder
+
+  The DUMMY/pivot links in between are fixed: they carry the motor bodies and
+  the brackets, and exist so the meshes land in the right place. Meshes are
+  modelled in millimetres, hence the 0.001 scale on every one.
+
+  Included by sketch_terminator.urdf.xacro, which adds the ros2_control
+  hardware interface on top.
+-->
+<robot name="sketch_terminator" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="materials.xacro" />
+
+  <xacro:property name="half_pi" value="${pi/2}"/>
+  <!-- Orientation that rotates the long-link meshes from how they were
+       exported into how they sit on the arm. -->
+  <xacro:property name="link_mesh_rpy" value="1.185714 1.513363 1.955879"/>
+
+  <link name="world"/>
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.0001 0.0 0.00261" rpy="0 0 0"/>
+      <mass value="0.09510119488113095"/>
+      <inertia ixx="6.6e-05" iyy="2.2e-05" izz="8.7e-05" ixy="0.0" iyz="0.0" ixz="0.0"/>
+    </inertial>
+  </link>
+
+  <!-- Motor 1 (Dynamixel) mounted on base - rotates around Z (waist) -->
+  <link name="DC11_A01_DUMMY_1">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/dynamixel_xl430.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/dynamixel_xl430.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.00884 0.0 0.0" rpy="0 0 0"/>
+      <mass value="0.3426594534663265"/>
+      <inertia ixx="8.4e-05" iyy="9.6e-05" izz="5.6e-05" ixy="0.0" iyz="0.0" ixz="0.0"/>
+    </inertial>
+  </link>
+
+  <!-- Virtual pivot frame for Revolute_2 — no geometry, just the rotation center -->
+  <link name="bracket_pivot"/>
+
+  <!-- L-bracket connecting motor 1 to motor 2 -->
+  <link name="Link_90_1">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/link_90_bracket.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/link_90_bracket.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.00545 -0.00040 0.00831" rpy="0 0 0"/>
+      <mass value="0.07870797232814769"/>
+      <inertia ixx="8e-06" iyy="2e-05" izz="2.3e-05" ixy="1e-06" iyz="0.0" ixz="-1e-06"/>
+    </inertial>
+  </link>
+
+  <!-- Motor 2 (Dynamixel) inside L-bracket - rotates around Y (shoulder pitch) -->
+  <link name="DC11_A01_DUMMY_2">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/dynamixel_xl430.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/dynamixel_xl430.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.0 0.00884 0.0" rpy="0 0 0"/>
+      <mass value="0.3426594534663265"/>
+      <inertia ixx="9.6e-05" iyy="8.4e-05" izz="5.6e-05" ixy="0.0" iyz="0.0" ixz="0.0"/>
+    </inertial>
+  </link>
+
+  <!-- Virtual pivot frame for Revolute_3 — no geometry, just the rotation center -->
+  <link name="shoulder_pivot"/>
+
+  <!-- First long arm link -->
+  <link name="Long_Link_1">
+    <inertial>
+      <origin xyz="-0.00056 0.07207 0.06957" rpy="0 0 0"/>
+      <mass value="0.14230160280394566"/>
+      <inertia ixx="0.00069" iyy="0.000338" izz="0.000357" ixy="-2.6e-05" iyz="-0.000338" ixz="-2.5e-05"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="${link_mesh_rpy}"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/long_link_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="${link_mesh_rpy}"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/long_link_1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Second long arm link -->
+  <link name="Long_Link_2">
+    <inertial>
+      <origin xyz="0.01120 0.07120 0.06957" rpy="0 0 0"/>
+      <mass value="0.14230160280394566"/>
+      <inertia ixx="0.00069" iyy="0.000338" izz="0.000357" ixy="-2.6e-05" iyz="-0.000338" ixz="-2.5e-05"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="${link_mesh_rpy}"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/long_link_2.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="${link_mesh_rpy}"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/long_link_2.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- =================== JOINTS =================== -->
+
+  <!-- World to base -->
+  <joint name="world_joint" type="fixed">
+    <parent link="world"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Base to Motor 1: fixed mount -->
+  <joint name="Revolute_1" type="fixed">
+    <parent link="base_link"/>
+    <child link="DC11_A01_DUMMY_1"/>
+    <origin xyz="0 0.012 0.02" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Revolute_2 pivot at the L-bracket's geometric center — rotates in place with no translation -->
+  <joint name="joint3" type="revolute">
+    <parent link="DC11_A01_DUMMY_1"/>
+    <child link="bracket_pivot"/>
+    <origin xyz="0 0 0.029" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-${half_pi}" upper="${half_pi}" effort="100" velocity="1.0"/>
+  </joint>
+
+  <!-- Bracket pivot to Link_90_1: fixed offset so bracket stays at its visual position -->
+  <joint name="joint_bracket" type="fixed">
+    <parent link="bracket_pivot"/>
+    <child link="Link_90_1"/>
+    <origin xyz="0 -0.012 -0.049" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Link_90_1 to Motor 2: fixed, motor sits rigidly inside bracket rotated 90deg -->
+  <joint name="Revolute_2b" type="fixed">
+    <parent link="Link_90_1"/>
+    <child link="DC11_A01_DUMMY_2"/>
+    <origin xyz="0 0.0115 0.086" rpy="${half_pi} 0 ${half_pi}"/>
+  </joint>
+
+  <!-- Revolute_3 pivot at the bottom attachment point of the long links (where they meet motor 2) -->
+  <joint name="joint1" type="revolute">
+    <parent link="DC11_A01_DUMMY_2"/>
+    <child link="shoulder_pivot"/>
+    <origin xyz="-0.001 0 0.024" rpy="0 0 -${half_pi}"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-${half_pi}" upper="${half_pi}" effort="100" velocity="1.0"/>
+  </joint>
+
+  <!-- Shoulder pivot to Long_Link_1: fixed offset so links stay at their visual position -->
+  <joint name="joint_longlinks" type="fixed">
+    <parent link="shoulder_pivot"/>
+    <child link="Long_Link_1"/>
+    <origin xyz="-0.053 -0.068 -0.026" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Long Link 1 to Long Link 2: fixed, both links rotate together via Revolute_3 -->
+  <joint name="Revolute_6" type="fixed">
+    <parent link="Long_Link_1"/>
+    <child link="Long_Link_2"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== PEN HOLDER END EFFECTOR ===== -->
+
+  <!-- Virtual pivot frame — no geometry, just the rotation center for Revolute_4 -->
+  <link name="wrist_pivot"/>
+
+  <!-- Wrist motor (Motor 3) at the start of the pen holder assembly -->
+  <link name="DC11_A01_DUMMY_3">
+    <visual>
+      <origin xyz="0 0 0.08" rpy="${pi/2} ${pi} ${pi/2}"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/dynamixel_xl430.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/dynamixel_xl430.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.0 0.00884 0.0" rpy="0 0 0"/>
+      <mass value="0.3426594534663265"/>
+      <inertia ixx="9.6e-05" iyy="8.4e-05" izz="5.6e-05" ixy="0.0" iyz="0.0" ixz="0.0"/>
+    </inertial>
+  </link>
+
+  <!-- Pen holder assembly driven by the wrist motor -->
+  <link name="penholder">
+    <visual>
+      <origin xyz="0 0 -0.077" rpy="0 ${pi} 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/pen_holder_mount.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/pen_holder.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0.1" rpy="0 -${pi} 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/pen_holder_stopper.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/marker.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/pen_holder_mount.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 -0.07" rpy="0 0 0"/>
+      <mass value="0.05"/>
+      <inertia ixx="1e-04" iyy="1e-04" izz="1e-05" ixy="0" iyz="0" ixz="0"/>
+    </inertial>
+  </link>
+
+  <!-- Revolute_4 pivot at the motor's geometric center — rotates in place with no translation -->
+  <joint name="joint2" type="revolute">
+    <parent link="Long_Link_2"/>
+    <child link="wrist_pivot"/>
+    <origin xyz="0.0525 0.270 0.004" rpy="-${half_pi} ${half_pi} 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-${half_pi}" upper="${half_pi}" effort="100" velocity="1.0"/>
+  </joint>
+
+  <!-- Wrist pivot to motor: fixed offset so motor stays at its manually-set visual position -->
+  <joint name="joint_motor3" type="fixed">
+    <parent link="wrist_pivot"/>
+    <child link="DC11_A01_DUMMY_3"/>
+    <origin xyz="0 0 -0.0775" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Wrist motor output shaft to pen holder: fixed -->
+  <joint name="joint_penholder" type="fixed">
+    <parent link="DC11_A01_DUMMY_3"/>
+    <child link="penholder"/>
+    <origin xyz="0 0 0.2" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Spring (Spring) — sits behind the marker, adjust origin to position it -->
+  <link name="spring">
+    <visual>
+      <origin xyz="0 0 -0.019 " rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/spring.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://sketch_terminator/meshes/spring.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.01"/>
+      <inertia ixx="1e-06" iyy="1e-06" izz="1e-06" ixy="0" iyz="0" ixz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="joint_spring" type="fixed">
+    <parent link="penholder"/>
+    <child link="spring"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+</robot>

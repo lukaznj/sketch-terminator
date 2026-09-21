@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<!--
+  ros2_control hardware interface for the three Dynamixel XL430-W250 servos.
+
+  All three sit on one daisy-chained TTL bus behind a U2D2 adapter. Set each
+  motor's ID and baud rate with Dynamixel Wizard before first use; the IDs
+  below (11, 12, 13) are what the driver expects to find.
+
+  If /dev/ttyUSB0 is not your adapter, check `ls /dev/serial/by-id/`.
+  Uncomment use_dummy to bring the stack up with no hardware attached.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!--
+    One Dynamixel joint. The position gains are the XL430 defaults retuned for
+    this arm's inertia: a high P for stiffness against gravity, a high D to
+    damp the overshoot that P alone causes on the long links, and no I (it only
+    winds up when the marker is pressed against the paper and cannot reach its
+    commanded position).
+  -->
+  <xacro:macro name="dynamixel_joint" params="joint_name id">
+    <joint name="${joint_name}">
+      <param name="id">${id}</param>
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+      <param name="Position P Gain">640</param>
+      <param name="Position I Gain">0</param>
+      <param name="Position D Gain">3600</param>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="sketch_terminator_ros2_control" params="name">
+    <ros2_control name="${name}" type="system">
+      <hardware>
+        <plugin>dynamixel_hardware/DynamixelHardware</plugin>
+        <param name="usb_port">/dev/ttyUSB0</param>
+        <param name="baud_rate">1000000</param>
+        <!-- <param name="use_dummy">true</param> -->
+      </hardware>
+
+      <!-- shoulder -->
+      <xacro:dynamixel_joint joint_name="joint1" id="11"/>
+      <!-- elbow -->
+      <xacro:dynamixel_joint joint_name="joint2" id="12"/>
+      <!-- base rotation -->
+      <xacro:dynamixel_joint joint_name="joint3" id="13"/>
+    </ros2_control>
+  </xacro:macro>
+
+</robot>

@@ -1,0 +1,40 @@
+# Camera calibration for turning pixels into robot base coordinates.
+#
+# Produced by the two-step calibration in docs: run camera_calib.launch.py for
+# the intrinsics, then camera_world.launch.py for the extrinsics, and copy the
+# numbers here. Re-run both whenever the camera is moved or refocused.
+
+yolo_workspace_processing_node:
+  ros__parameters:
+    yolo_detections_topic: "/yolo/detections"
+    positions_topic: "/vision/object_positions"
+
+    # Intrinsics, taken from the rectified projection matrix P in
+    # camera_calibration_params.yaml.
+    fx: 721.29907
+    fy: 716.27563
+    cx: 344.87706
+    cy: 292.58597
+
+    # Extrinsics: the world-to-camera rotation, flattened row-major.
+    R_cam_to_robot: [
+       0.02693, -0.99963, -0.00372,
+      -0.99301, -0.02718,  0.11488,
+      -0.11494,  0.00060, -0.99337
+    ]
+
+    # World-to-camera translation in MILLIMETRES (the transform below is in
+    # metres, so these are its last column times 1000).
+    t_cam_to_robot: [3.31, 187.63, 675.19]
+
+    # Residual offset applied after projection, in metres. Dial this in against
+    # a measured test point instead of re-deriving the extrinsics.
+    offset_x_m: -0.04
+    offset_y_m: 0.0
+
+# The transform camera_to_world.py printed, for reference:
+#
+#   [[ 0.02693, -0.99963, -0.00372, 0.00331],
+#    [-0.99301, -0.02718,  0.11488, 0.18763],
+#    [-0.11494,  0.00060, -0.99337, 0.67519],
+#    [ 0.     ,  0.     ,  0.     , 1.     ]]

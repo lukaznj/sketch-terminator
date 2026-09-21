@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>sketch_terminator</name>
+  <version>1.0.0</version>
+  <description>
+    A 3-DOF drawing robot arm that finds objects with a camera, plans a
+    collision-free path between them, and draws it with a marker.
+  </description>
+  <maintainer email="rokomilicc@gmail.com">Sketch Terminator team</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>trajectory_msgs</depend>
+  <depend>control_msgs</depend>
+  <depend>action_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>yolo_msgs</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>joint_state_publisher</depend>
+  <depend>joint_state_publisher_gui</depend>
+  <depend>xacro</depend>
+  <depend>urdf</depend>
+  <depend>rviz2</depend>
+  <depend>launch</depend>
+  <depend>launch_ros</depend>
+  <depend>ros2_control</depend>
+  <depend>ros2_controllers</depend>
+  <depend>dynamixel_hardware</depend>
+
+  <!-- Camera driver and the calibration GUI, used by the calibration launch files. -->
+  <exec_depend>usb_cam</exec_depend>
+  <exec_depend>camera_calibration</exec_depend>
+
+  <!-- The LLM agent. Not on the ROS index; see the README for how to install it. -->
+  <exec_depend>rosa</exec_depend>
+  <exec_depend>langchain_openai</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
